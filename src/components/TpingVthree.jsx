@@ -9,9 +9,10 @@ import { word_body as words2 } from '../wordList';
 
 import Word from './Word';
 import Caret from './Caret';
+import { u } from 'framer-motion/client';
 import { use } from 'react';
 
-const TpingVthree = () => {
+const TpingVthree = ({ isWord }) => {
     const [words, setWords] = useState(words2);
     const [input, setInput] = useState('');
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
@@ -28,8 +29,8 @@ const TpingVthree = () => {
     const [constWord, setConstWord] = useState([]);
     const [countLine, setCountLine] = useState(1);
     const [isStart, setIsStart] = useState(false);
-
-
+    const [isStartTime, setIsStartTime] = useState(false);
+    const [isGameOverWord, setIsGameOverWord] = useState(false);
 
     const [isOne, setIsOne] = useState(false);
 
@@ -44,7 +45,7 @@ const TpingVthree = () => {
     const wordsRef = useRef(null);
 
     useEffect(() => {
-        if (isStart) {
+        if (isStart && !isWord && isStartTime) { // ถ้า isWord เป็น true จะไม่ทำงานส่วนจับเวลา
             const timer = setInterval(() => {
                 setTimeLeft((prevTime) => {
                     if (prevTime <= 1) {
@@ -59,8 +60,12 @@ const TpingVthree = () => {
 
             return () => clearInterval(timer);
         }
+    }, [isStart, isWord, isStartTime]);
 
-    }, [isStart]);
+    useEffect(() => {
+        handleRestart()
+    }, [isWord]);
+
 
     const handleStart = () => {
         setIsStart(true);
@@ -75,15 +80,18 @@ const TpingVthree = () => {
         setConstWord([]);
         setCountLine(1);
         setIsGameOver(false);
-        setTimeLeft(localStorage.getItem('setChoose-time') || 15);
+        if (!isWord) { // ตั้งค่าเวลาใหม่เมื่อ isWord เป็น false
+            setTimeLeft(localStorage.getItem('setChoose-time') || 15);
+        }
         setIncorrectEntries(0);
         const elements = document.querySelectorAll('.extra');
         elements.forEach((element) => {
             element.remove();
         });
         focusInput();
-
+        setIsStartTime(false);
     };
+
 
     const handleRestart = () => {
         setIsStart(false);
@@ -107,18 +115,19 @@ const TpingVthree = () => {
 
     };
 
-    
 
 
     useEffect(() => {
         const numberWord = localStorage.getItem('setChoose-words') || numberWords;
-        setWords(
-            [...words2]
-                .sort(() => 0.5 - Math.random())
-            // .slice(0, parseInt(numberWord))
-        );
-    
-    }, [time]);
+
+        // สร้างคำใหม่โดยเรียงลำดับแบบสุ่ม และถ้า isWord เป็น false ให้ตัดคำ
+        const updatedWords = [...words2].sort(() => 0.5 - Math.random());
+        if (isWord) {
+            setWords(updatedWords.slice(0, parseInt(numberWord)));
+        } else {
+            setWords(updatedWords);
+        }
+    }, [time, isWord, numberWords]);
 
 
     useEffect(() => {
@@ -181,10 +190,12 @@ const TpingVthree = () => {
         setCountLine((prevCount) => prevCount + 1); // Update line count
     };
 
-
     const handleInputChange = (e) => {
         if (isGameOver) return;
-        if(!isStart) return;
+        if (!isStart) return;
+        if (!isStartTime) {
+            setIsStartTime(true);
+        }
 
         const value = e.target.value;
 
@@ -216,6 +227,9 @@ const TpingVthree = () => {
                     setIsBackToLine(true);
                 }
                 setCorrectEntries((prev) => prev + 1);
+            }
+            if (correctEntries + 1 === Number(numberWords)) {
+                setIsGameOverWord(true);
             }
             return;
         }
@@ -296,11 +310,11 @@ const TpingVthree = () => {
             // Reset the caret animation and inactivity state
             clearTimeout(inactivityTimeout.current);
             setIsTyping(false);
-            // caretElement.style.animationName = 'none'; // Stop caret flashing
+            caretElement.style.animationName = 'caretFlashSmooth'; // Start caret flashing
 
             // Set a timeout for inactivity
             inactivityTimeout.current = setTimeout(() => {
-                caretElement.style.animationName = 'caretFlashSmooth'; // Resume caret flashing
+                caretElement.style.animationName = 'none'; // Resume caret flashing
                 setIsTyping(true); // Mark as inactive
             }, 5000); // 5 seconds of inactivity
         };
@@ -322,6 +336,65 @@ const TpingVthree = () => {
         return Math.round(correctEntries / minutes);
     };
 
+    const [timeWord, setTimeWord] = useState(0);
+
+    const tick = () => {
+        setTimeWord(prevTime => prevTime + 1);
+    };
+
+    useEffect(() => {
+        if (isStartTime && !isGameOverWord) {
+            const timerId = setInterval(tick, 1000);
+            // Cleanup: clear the interval when the effect re-runs or unmounts
+            return () => clearInterval(timerId);
+        }
+
+    }, [isStartTime, isGameOverWord,timeWord]);
+
+
+    const calculateWPMforWord = () => {
+        if (timeWord === 0) return 0;
+        const wpm = (numberWords / timeWord) * 60;
+        return Math.round(wpm);
+    };
+
+    
+    const handleRestartWord = () => {
+        setIsTyping(false);
+        setInput('');
+        setCurrentWordIndex(0);
+        setCurrentCharIndex(0);
+        setCorrectEntries(0);
+        setIsBackToLine(false);
+        setCharStyles([]);
+        setConstWord([]);
+        setCountLine(1);
+        const elements = document.querySelectorAll('.extra');
+        elements.forEach((element) => {
+            element.remove();
+        });
+        setIsGameOverWord(false);
+    };
+    useEffect(() => {
+        focusInput();
+    },[handleRestartWord])
+
+   
+    if (isWord && isGameOverWord) {
+        return (
+            <div className="text-center space-y-4">
+                <Summary wpm={calculateWPMforWord()} />
+                <button
+                    onClick={handleRestartWord}
+                    className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded shadow-md transition duration-200 ease-in-out"
+                >
+                    Restart
+                </button>
+            </div>
+        );
+    }
+
+
     return (
         <>
             {isGameOver ? (
@@ -341,7 +414,7 @@ const TpingVthree = () => {
 
                     <div className="bg-gray-800 text-white rounded-lg  max-w-sm mx-auto">
                         <div className="text-center space-y-4">
-                            <p className="text-2xl font-bold text-green-400">{timeLeft}</p>
+                            {!isWord && <p className="text-2xl font-bold text-green-400">{timeLeft}</p>}
                             {
                                 !isStart &&
                                 <button
@@ -358,9 +431,10 @@ const TpingVthree = () => {
 
                     <div
                         id="wordsWrapper"
-                        className={`w-full relative overflow-visible ${!isTyping && !isStart && 'blur-2xl'} `}
+                        className={`w-full relative overflow-visible ${!isStart && 'blur-2xl'} ${isTyping && 'blur-2xl'}`}
                         onClick={focusInput}
                     >
+                        
                         <input
                             type="text"
                             value={input}

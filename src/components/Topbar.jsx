@@ -3,8 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { setTime } from '../features/choose/chooseTimeSlice';
 import { setChooseWord } from '../features/choose/chooseWordSlice';
 
-const Topbar = ({ isStart, setIsStart }) => {
-  const [change, setChange] = useState(false);
+const Topbar = ({ setIsWord }) => {
+  const [change, setChange] = useState(true);
   const [chooseTime, setChooseTime] = useState('15');
   const [chooseWords, setChooseWords] = useState('10');
   const [customValue, setCustomValue] = useState(''); // เก็บค่าที่ผู้ใช้ป้อนใน custom
@@ -14,6 +14,7 @@ const Topbar = ({ isStart, setIsStart }) => {
   const handleChange = (type) => {
     const isTime = type === 'time';
     setChange(isTime);
+    setIsWord(!isTime);
     localStorage.setItem('setItem-time', isTime ? 'true' : 'false');
   };
 
@@ -57,9 +58,19 @@ const Topbar = ({ isStart, setIsStart }) => {
   };
 
   useEffect(() => {
+
     const savedPreference = localStorage.getItem('setItem-time');
     const savedTime = localStorage.getItem('setChoose-time');
     const savedWords = localStorage.getItem('setChoose-words');
+    if (!savedPreference) {
+      localStorage.setItem('setItem-time', 'true');
+    }
+    if(!savedTime){
+      localStorage.setItem('setChoose-time', '15');
+    }
+    if(!savedWords){
+      localStorage.setItem('setChoose-words', '10');
+    }
 
     if (savedPreference) {
       setChange(savedPreference === 'true');
@@ -84,13 +95,13 @@ const Topbar = ({ isStart, setIsStart }) => {
           >
             Time
           </span>
-          {/* <span
+          <span
             className={`hover:text-white text-lg font-semibold ${!change ? 'text-green-400 underline' : 'text-gray-400'
               }`}
             onClick={() => handleChange('word')}
           >
             Words
-          </span> */}
+          </span>
         </div>
 
         <div className="flex space-x-4">

@@ -2,8 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "arialroundedmtbold";
+  src: url("../public/arialroundedmtbold.ttf");
+}
 * {
-  font-family: "Inconsolata", monospace;
+  font-family: "arialroundedmtbold", monospace;
   font-optical-sizing: auto;
   font-weight: 400;
   font-style: normal;
